@@ -676,7 +676,7 @@ module RTF
        @level  = level
        @parent = parent
 
-       number = siblings_count + 1 if [:decimal,:"lower-alpha",:"upper-alpha",:"lower-roman",:"upper-roman",:cardinal,:"masculine-ordinal",:"femenine-ordinal"].include
+       number = siblings_count + 1 if [:decimal,:"lower-alpha",:"upper-alpha",:"lower-roman",:"upper-roman",:cardinal,:"masculine-ordinal",:"femenine-ordinal"].include?(parent.kind)
        number = ListTextNode.parse(number,parent.kind)
        prefix = "{\\listtext#{@level.marker.text_format(number)}}"
        suffix = '\\'
