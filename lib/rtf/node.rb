@@ -258,9 +258,9 @@ module RTF
       # This method generates the RTF text for a CommandNode object.
       def to_rtf
          text = StringIO.new
-
+         text << self.parent.prefix if self.parent.class == RTF::ListLevelNode && self.class == ListTextNode
          text << '{'       if wrap?
-         text << @prefix   if @prefix
+         text << @prefix   if @prefix && self.class != RTF::ListLevelNode
 
          self.each do |entry|
             text << "\n" if split?
@@ -608,7 +608,7 @@ module RTF
 
        suffix  = '\pard'
        suffix << ListLevel::ResetTabs.map {|tw| "\\tx#{tw}"}.join
-       suffix << '\ql\qlnatural\pardirnatural\cf0 \\'
+       suffix << '\ql\qlnatural\pardirnatural\cf0 '
 
        super(parent, prefix, suffix, true, false)
 
@@ -676,7 +676,8 @@ module RTF
        @level  = level
        @parent = parent
 
-       number = siblings_count + 1 if parent.kind == :decimal
+       number = siblings_count + 1 if [:decimal,:"lower-alpha",:"upper-alpha",:"lower-roman",:"upper-roman",:cardinal,:"masculine-ordinal",:"femenine-ordinal"].include
+       number = ListTextNode.parse(number,parent.kind)
        prefix = "{\\listtext#{@level.marker.text_format(number)}}"
        suffix = '\\'
 
@@ -684,9 +685,52 @@ module RTF
      end
 
      private
+       
+       VALUES = [["M", 1000], ["D", 500], ["C", 100], ["L", 50], ["X", 10], ["V", 5], ["I", 1]]
+       
        def siblings_count
          parent.children.select {|n| n.kind_of?(self.class)}.size
        end
+       
+       def self.parse(number,kind)
+         return number if [:decimal,:cardinal].include?(kind)
+         
+         if kind == :"femenine-ordinal"
+            out = number.to_s + "{\\super\n\\fs18\na}\\"
+            return out
+         end
+         
+         if kind == :"masculine-ordinal"
+            out = number.to_s + "{\\super\n\\fs18\no}\\"
+            return out
+         end
+
+         if [:"lower-alpha",:"upper-alpha"].include?(kind)
+            out = number.to_s(26).tr( "123456789abcdefghijklmnopq", "abcdefghijklmnopqrstuvwxyz" )
+            out.upcase! if kind == :"upper-alpha"
+            return out
+         end
+         
+         if [:"lower-roman",:"upper-roman"].include?(kind)
+            out = romanize(number)
+            out.downcase! if kind == :"lower-roman"
+            return out
+         end
+         
+         number
+       end
+
+      def self.romanize(n)
+        roman = ""      
+        VALUES.each do |pair|
+          letter = pair[0]
+          value = pair[1]
+          roman += letter*(n / value)
+          n = n % value
+        end
+        return roman
+      end      
+       
    end
 
    class LinkNode < CommandNode
@@ -1858,6 +1902,7 @@ module RTF
          text << "\n#{@style.prefix(self)}" if !@style.nil?
          self.each {|entry| text << "\n#{entry.to_rtf}"}
          text << "\n}"
+         text.string.gsub!(/(\n) (\n)/,'\1''\2')
 
          text.string
       end
