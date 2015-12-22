@@ -1903,6 +1903,7 @@ module RTF
          self.each {|entry| text << "\n#{entry.to_rtf}"}
          text << "\n}"
          text.string.gsub!(/(\n) (\n)/,'\1''\2')
+         text.string.gsub!(/(\n)  (\n)/,'\1'' ''\2')
 
          text.string
       end
